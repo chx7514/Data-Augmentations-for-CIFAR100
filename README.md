@@ -1,4 +1,4 @@
-# cv-midterm
+# CV-midterm
 
 Run the train files. For example, to run the baseline experiment of ResNet:
 
