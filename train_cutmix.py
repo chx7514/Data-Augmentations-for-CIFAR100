@@ -40,6 +40,8 @@ parser.add_argument('--batch_size', type=int, default=128,
                     help='input batch size for training (default: 128)')
 parser.add_argument('--model', '-a', default='resnet18',
                     choices=model_options)
+parser.add_argument('--resume', '-r', action='store_true',
+                    help='resume from checkpoint')
 
 args = parser.parse_args()
 
@@ -96,6 +98,18 @@ if args.model == 'shufflenet':
 
 model = model.cuda()
 torch.backends.cudnn.benchmark = True
+
+if args.resume:
+    # Load checkpoint.
+    print('==> Resuming from checkpoint..')
+    assert os.path.isfile('./best_model_' + args.model + '.pth'), 'Error: no checkpoint directory found!'
+    checkpoint = torch.load('./best_model_' + args.model + '.pth')
+    model.load_state_dict(checkpoint['state_dict'])
+    best_acc = checkpoint['acc']
+    start_epoch = checkpoint['epoch'] + 1
+else:
+    best_acc = 0
+    start_epoch = 0
 
 path = os.path.join('./path/to/log/cutmix', args.model)
 writer = SummaryWriter(path)
@@ -188,7 +202,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
     log = 'Epoch:{0}\tLoss: {loss.avg:.4f}\t'.format(epoch, loss=losses)
     return losses.avg, log
 
-def test(test_loader, model):
+def test(test_loader, model, criterion):
+    losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
 
@@ -202,8 +217,10 @@ def test(test_loader, model):
             input = input.cuda()
             target = target.cuda()
             output = model(input)
+            loss = criterion(output, target)
 
-        # measure accuracy and record loss
+        # measure accuracy and record loss       
+        losses.update(loss.item(), input.size(0))
         accs = accuracy(output.data, target, (1, 5))
         acc1, acc5 = accs[0], accs[1]
         top1.update(acc1.item(), input.size(0))
@@ -213,22 +230,21 @@ def test(test_loader, model):
 
     log = 'Test Acc@1: {top1.avg:.3f}\t Test Acc@5: {top5.avg:.3f}'.format(top1=top1, top5=top5)
 
-    return top1.avg, top5.avg, log
+    return losses.avg, top1.avg, top5.avg, log
 
 
 num_epochs = args.epochs
 
 train_loader = train_loader
 test_loader = valid_loader
-optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
+optimizer = torch.optim.SGD([{'params': model.parameters(), 'initial_lr': args.lr}], lr=args.lr, momentum=0.9, weight_decay=5e-4)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, last_epoch=start_epoch-1)
 criterion = nn.CrossEntropyLoss()
-best_acc = 0
-for epoch in range(num_epochs):
-    loss, train_log = cutmix_train(train_loader, model, criterion, optimizer, epoch)
-    test_acc1, test_acc5, test_log = test(test_loader, model)
-    train_acc1, train_acc5, _ = test(train_loader, model)
-    writer.add_scalar('loss', loss, epoch)
+for epoch in range(start_epoch, num_epochs):
+    _, train_log = cutmix_train(train_loader, model, criterion, optimizer, epoch)
+    test_loss, test_acc1, test_acc5, test_log = test(test_loader, model, criterion)
+    train_loss, train_acc1, train_acc5, _ = test(train_loader, model, criterion)
+    writer.add_scalars('loss', {'train': train_loss, 'test': test_loss}, epoch)
     writer.add_scalars('top1 acc', {'train': train_acc1, 'test': test_acc1}, epoch)
     writer.add_scalars('top5 acc', {'train': train_acc5, 'test': test_acc5}, epoch)
     scheduler.step()
@@ -240,4 +256,4 @@ for epoch in range(num_epochs):
         save_checkpoint({'epoch':epoch,
         'state_dict':model.state_dict(),
         'acc': best_acc,
-        }, False, 'best_model_cutmix_' + args.model + '.pth')
+        }, False, 'best_model_' + args.model + '.pth')
