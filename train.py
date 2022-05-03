@@ -22,7 +22,7 @@ from model.mobilenet import MobileNet
 from model.regnet import RegNetX_200MF
 from model.resnet import ResNet18
 from model.resnext import ResNeXt29_2x64d
-from model.shufflenet import ShuffleNetG2
+from model.shufflenet import shufflenet
 from model.simpleDLA import SimpleDLA
 from model.vgg import VGG_for_cifar100
 from model.wideresnet import WideResNet_for_cifar100
@@ -92,7 +92,7 @@ if args.model == 'efficientnet':
 if args.model == 'simpleDLA':
     model = SimpleDLA()
 if args.model == 'shufflenet':
-    model = ShuffleNetG2()
+    model = shufflenet()
 
 model = model.cuda()
 torch.backends.cudnn.benchmark = True
@@ -201,7 +201,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
     log = 'Epoch:{0}\tLoss: {loss.avg:.4f}\t'.format(epoch, loss=losses)
     return losses.avg, log
 
-def test(test_loader, model):
+def test(test_loader, model, criterion):
+    losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
 
@@ -215,8 +216,10 @@ def test(test_loader, model):
             input = input.cuda()
             target = target.cuda()
             output = model(input)
+            loss = criterion(output, target)
 
-        # measure accuracy and record loss
+        # measure accuracy and record loss        
+        losses.update(loss.item(), input.size(0))
         accs = accuracy(output.data, target, (1, 5))
         acc1, acc5 = accs[0], accs[1]
         top1.update(acc1.item(), input.size(0))
@@ -226,7 +229,7 @@ def test(test_loader, model):
 
     log = 'Test Acc@1: {top1.avg:.3f}\t Test Acc@5: {top5.avg:.3f}'.format(top1=top1, top5=top5)
 
-    return top1.avg, top5.avg, log
+    return losses.avg, top1.avg, top5.avg, log
 
 
 num_epochs = args.epochs
@@ -237,10 +240,10 @@ optimizer = torch.optim.SGD([{'params': model.parameters(), 'initial_lr': args.l
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, last_epoch=start_epoch-1)
 criterion = nn.CrossEntropyLoss()
 for epoch in range(start_epoch, num_epochs):
-    loss, train_log = train(train_loader, model, criterion, optimizer, epoch)
-    test_acc1, test_acc5, test_log = test(test_loader, model)
-    train_acc1, train_acc5, _ = test(train_loader, model)
-    writer.add_scalar('loss', loss, epoch)
+    _, train_log = train(train_loader, model, criterion, optimizer, epoch)
+    test_loss, test_acc1, test_acc5, test_log = test(test_loader, model, criterion)
+    train_loss, train_acc1, train_acc5, _ = test(train_loader, model, criterion)
+    writer.add_scalars('loss', {'train': train_loss, 'test': test_loss}, epoch)
     writer.add_scalars('top1 acc', {'train': train_acc1, 'test': test_acc1}, epoch)
     writer.add_scalars('top5 acc', {'train': train_acc5, 'test': test_acc5}, epoch)
     scheduler.step()
