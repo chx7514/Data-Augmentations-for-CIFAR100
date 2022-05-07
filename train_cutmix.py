@@ -22,7 +22,7 @@ from model.mobilenet import MobileNet
 from model.regnet import RegNetX_200MF
 from model.resnet import ResNet18
 from model.resnext import ResNeXt29_2x64d
-from model.shufflenet import ShuffleNetG2
+from model.shufflenet import shufflenet
 from model.simpleDLA import SimpleDLA
 from model.vgg import VGG_for_cifar100
 from model.wideresnet import WideResNet_for_cifar100
@@ -94,7 +94,7 @@ if args.model == 'efficientnet':
 if args.model == 'simpleDLA':
     model = SimpleDLA()
 if args.model == 'shufflenet':
-    model = ShuffleNetG2()
+    model = shufflenet()
 
 model = model.cuda()
 torch.backends.cudnn.benchmark = True
@@ -102,8 +102,8 @@ torch.backends.cudnn.benchmark = True
 if args.resume:
     # Load checkpoint.
     print('==> Resuming from checkpoint..')
-    assert os.path.isfile('./best_model_' + args.model + '.pth'), 'Error: no checkpoint directory found!'
-    checkpoint = torch.load('./best_model_' + args.model + '.pth')
+    assert os.path.isfile('./best_model_cutmix_' + args.model + '.pth'), 'Error: no checkpoint directory found!'
+    checkpoint = torch.load('./best_model_cutmix_' + args.model + '.pth')
     model.load_state_dict(checkpoint['state_dict'])
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch'] + 1
@@ -256,4 +256,4 @@ for epoch in range(start_epoch, num_epochs):
         save_checkpoint({'epoch':epoch,
         'state_dict':model.state_dict(),
         'acc': best_acc,
-        }, False, 'best_model_' + args.model + '.pth')
+        }, False, 'best_model_cutmix_' + args.model + '.pth')
