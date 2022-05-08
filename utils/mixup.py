@@ -67,3 +67,32 @@ def mixup_train(train_loader, model, criterion, optimizer, epoch):
 
     log = 'Epoch:{0}\tLoss: {loss.avg:.4f}\t'.format(epoch, loss=losses)
     return losses.avg, log
+
+def manifold_mixup_train(train_loader, model, criterion, optimizer, epoch):
+    #每个epoch的优化过程
+    losses = AverageMeter()
+
+    # switch to train mode
+    model.train()
+
+    for input, target in warp_tqdm(train_loader, True):
+
+        input = input.cuda()
+        target = target.cuda()
+
+        # manifold_mixup
+        output, target_a, target_b, lamb = model(input, target, mixup_hidden=True)
+        
+        # compute loss
+        loss = mixup_criterion(criterion, output, target_a, target_b, lamb[0])
+
+        # compute gradient and do SGD step
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # measure accuracy and record loss
+        losses.update(loss.item(), input.size(0))
+
+    log = 'Epoch:{0}\tLoss: {loss.avg:.4f}\t'.format(epoch, loss=losses)
+    return losses.avg, log
