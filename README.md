@@ -2,7 +2,9 @@
 
 We implement eleven networks (see the model_options) and eight data augmentations (cutout, mixup, cutmix, random erasing, manifold mixup, autoaugment, randaugment and trivialaugment.
 
-Run the train files to do the experiments. For example, to run the baseline experiment of ResNet18:
+Run the train files to do the experiments. CIFAR-100 path should be at `./cifar100`.
+
+For example, to run the baseline experiment of ResNet18:
 
 ```
 python train.py --model resnet
