@@ -1,6 +1,6 @@
 # Data Augmentations for CIFAR100
 
-We implement ten networks (see the model_options) and eight data augmentations (cutout, mixup, cutmix, random erasing, manifold mixup, autoaugment, randaugment and trivialaugment.
+We implement eleven networks (see the model_options) and eight data augmentations (cutout, mixup, cutmix, random erasing, manifold mixup, autoaugment, randaugment and trivialaugment.
 
 Run the train files to do the experiments. For example, to run the baseline experiment of ResNet18:
 
