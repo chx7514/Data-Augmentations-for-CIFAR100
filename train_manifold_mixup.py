@@ -16,9 +16,11 @@ import time
 import argparse
 
 from model.manifold_resnet import resnet18
+from model.manifold_wideresnet import WideResNet_for_cifar100
 
 from utils.mixup import manifold_mixup_train
 
+model_options = ['resnet', 'wideresnet']
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR100 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -26,6 +28,8 @@ parser.add_argument('--epochs', type=int, default=200,
                     help='number of epochs to train (default: 200)')
 parser.add_argument('--batch_size', type=int, default=128,
                     help='input batch size for training (default: 128)')
+parser.add_argument('--model', '-a', default='resnet',
+                    choices=model_options)
 parser.add_argument('--resume', '-r', action='store_true',
                     help='resume from checkpoint')
 
@@ -59,15 +63,19 @@ valid_loader = DataLoader(valid_dataset,
                             batch_size=Batch_size,
                             num_workers=2)
 
-model = resnet18()
+if args.model == 'resnet':
+    model = resnet18()
+if args.model == 'wideresnet':
+    model = WideResNet_for_cifar100()
+
 model = model.cuda()
 torch.backends.cudnn.benchmark = True
 
 if args.resume:
     # Load checkpoint.
     print('==> Resuming from checkpoint..')
-    assert os.path.isfile('./best_model_manifoldmixup' + '.pth'), 'Error: no checkpoint directory found!'
-    checkpoint = torch.load('./best_model_manifoldmixup' + '.pth')
+    assert os.path.isfile('./best_model_manifoldmixup' + args.model + '.pth'), 'Error: no checkpoint directory found!'
+    checkpoint = torch.load('./best_model_manifoldmixup' + args.model + '.pth')
     model.load_state_dict(checkpoint['state_dict'])
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch'] + 1
@@ -75,7 +83,7 @@ else:
     best_acc = 0
     start_epoch = 0
 
-path = os.path.join('./path/to/log/manifoldmixup')
+path = os.path.join('./path/to/log/manifoldmixup', args.model)
 writer = SummaryWriter(path)
 
 
