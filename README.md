@@ -1,4 +1,4 @@
-# Data Augmentations for CIFAR100
+# Data Augmentations for CIFAR-100
 
 We implement eleven networks (see the model_options) and eight data augmentations (cutout, mixup, cutmix, random erasing, manifold mixup, autoaugment, randaugment and trivialaugment.
 
